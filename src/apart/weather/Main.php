@@ -7,16 +7,17 @@ use pocketmine\command\CommandSender;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
-use pocketmine\Player;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\Config;
 
 class Main extends PluginBase implements Listener
 {
 
-	private $config2;
+	private Config $config2;
 
-	public function onEnable()
+	public function onEnable() : void
 	{
 
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
@@ -30,22 +31,16 @@ class Main extends PluginBase implements Listener
 	public function onjoin(PlayerJoinEvent $event)
 	{
 		$player = $event->getPlayer();
-		$level = $player->getLevel()->getFolderName();
+		$level = $player->getWorld()->getFolderName();
 		$data = $this->config2->get("weather");
 		if ($data === "clear") {
 
 		} elseif ($data === "rain") {
-			$pk = new LevelEventPacket();
-			$pk->position = $player;
-			$pk->data = 110000;
-			$pk->evid = LevelEventPacket::EVENT_START_RAIN;
-			$player->dataPacket($pk);
+			$pk = LevelEventPacket::create(LevelEvent::START_RAIN, 110000, $player->getPosition()->asVector3());
+			$player->getNetworkSession()->sendDataPacket($pk);
 		} elseif ($data === "thunder") {
-			$pk = new LevelEventPacket();
-			$pk->position = $player;
-			$pk->data = 40000;
-			$pk->evid = LevelEventPacket::EVENT_START_RAIN;
-			$player->dataPacket($pk);
+			$pk = LevelEventPacket::create(LevelEvent::START_RAIN, 40000, $player->getPosition()->asVector3());
+			$player->getNetworkSession()->sendDataPacket($pk);
 		}
 	}
 
@@ -62,44 +57,37 @@ class Main extends PluginBase implements Listener
 		switch ($label) {
 
 			case 'weather':
-				if ($sender->isOp()) {
+				if ($this->getServer()->isOp($sender->getName())) {
 					if (!isset($args[0])) {
-						$sender->sendMessage("§a[weatherSystem] usage：/weather clear|rain|thunder");
-					} elseif ($args[0] === "rain") {
+						$sender->sendMessage("§a[weatherSystem] usage: /weather clear|rain|thunder");
+					} elseif ($args[0] === "rain"||$args[0] === "r") {
 						$this->config2->set("weather", "rain");
-						$pk = new LevelEventPacket();
-						$pk->position = $sender;
-						$pk->data = 110000;
-						$pk->evid = LevelEventPacket::EVENT_START_RAIN;
-						$sender->dataPacket($pk);
-					} elseif ($args[0] === "thunder") {
+						$pk = LevelEventPacket::create(LevelEvent::START_RAIN, 110000, $sender->getPosition()->asVector3());
+						$sender->getNetworkSession()->sendDataPacket($pk);
+					} elseif ($args[0] === "thunder"||$args[0] === "t") {
 						$this->config2->set("weather", "thunder");
-						$pk = new LevelEventPacket();
-						$pk->position = $sender;
-						$pk->data = 40000;
-						$pk->evid = LevelEventPacket::EVENT_START_RAIN;
-					} elseif ($args[0] === "clear") {
+						$pk = LevelEventPacket::create(LevelEvent::START_RAIN, 40000, $sender->getPosition()->asVector3());
+						$sender->getNetworkSession()->sendDataPacket($pk);
+					} elseif ($args[0] === "clear"||$args[0] === "c") {
 						if ($data === "clear") {
 							# code...
 						}
 						if ($data === "rain") {
-							$pk = new LevelEventPacket();
-							$pk->position = $sender;
-							$pk->data = 110000;
-							$pk->evid = LevelEventPacket::EVENT_STOP_RAIN;
-							$sender->dataPacket($pk);
+							$pk = LevelEventPacket::create(LevelEvent::STOP_RAIN, 110000, $sender->getPosition()->asVector3());
+							$sender->getNetworkSession()->sendDataPacket($pk);
+
 							$this->config2->set("weather", "clear");
 							return true;
 						}
 						if ($data === "thunder") {
-							$pk = new LevelEventPacket();
-							$pk->position = $sender;
-							$pk->data = 40000;
-							$pk->evid = LevelEventPacket::EVENT_STOP_RAIN;
-							$sender->dataPacket($pk);
+							$pk = LevelEventPacket::create(LevelEvent::STOP_RAIN, 40000, $sender->getPosition()->asVector3());
+							$sender->getNetworkSession()->sendDataPacket($pk);
 							$this->config2->set("weather", "clear");
 							return true;
 						}
+					}else{
+						$sender->sendMessage("§a[weatherSystem] usage: /weather clear|rain|thunder");
+						return true;
 					}
 				}else{
 					$sender->sendMessage("§4このコマンドを実行する権限がありません。");
@@ -111,7 +99,7 @@ class Main extends PluginBase implements Listener
 
 	}
 
-	public function onDisable()
+	public function onDisable() : void
     {
       $this->config2->save();
     }
